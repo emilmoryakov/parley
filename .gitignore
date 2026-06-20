@@ -28,10 +28,14 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files — your OpenRouter key lives in .env.local (server-side only).
-# .env.example is committed as a template.
-.env*
-!.env.example
+# env files
+#   .env       — committed: holds the non-secret DATABASE_URL so the app runs after clone
+#   .env.local — gitignored: holds secrets (OPENROUTER_API_KEY)
+.env.local
+.env*.local
+
+# SQLite database (regenerated via `prisma migrate dev` + `npm run db:seed`)
+/dev.db*
 
 # vercel
 .vercel
@@ -42,3 +46,6 @@ next-env.d.ts
 
 # legacy A3 secret (the old plain-JS key file)
 config.js
+
+# generated Prisma client
+/src/generated/prisma

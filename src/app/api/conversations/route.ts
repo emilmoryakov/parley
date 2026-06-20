@@ -1,41 +1,41 @@
 import { NextResponse } from "next/server";
-import type { Conversation } from "@/lib/types";
+import { prisma } from "@/lib/prisma";
 
 /*
- * Conversations API route.
- *
- * The in-memory "database" now lives here on the server (it used to be an array
- * inside the client-side api module). The client reaches it over HTTP via
- * src/lib/api/conversations.ts.
+ * Conversations API route — backed by Prisma/SQLite (no more in-memory arrays).
+ *   GET  → list conversations (newest first), with a preview of the last message
+ *   POST → create a conversation
  */
-const conversations: Conversation[] = [
-  {
-    id: "c1",
-    title: "UI redesign — glass & motion",
-    preview: "Ship the prototype 🚀",
-    icon: "sparkles",
-    accent: "indigo",
-    time: "now",
-  },
-  {
-    id: "c2",
-    title: "API error handling pass",
-    preview: "Let us wrap fetch in a retry…",
-    icon: "bug",
-    accent: "rose",
-    time: "2h",
-  },
-  {
-    id: "c3",
-    title: "Trip planning: Lisbon",
-    preview: "Add a day in Sintra",
-    icon: "plane",
-    accent: "emerald",
-    time: "Jun 12",
-  },
-];
 
-// GET /api/conversations → the full conversation list.
 export async function GET() {
-  return NextResponse.json(conversations);
+  const conversations = await prisma.conversation.findMany({
+    orderBy: { createdAt: "desc" },
+    include: { messages: { orderBy: { createdAt: "desc" }, take: 1 } },
+  });
+
+  return NextResponse.json(
+    conversations.map((conversation) => ({
+      id: conversation.id,
+      title: conversation.title,
+      preview: conversation.messages[0]?.content ?? "No messages yet",
+      updatedAt: conversation.updatedAt,
+    })),
+  );
+}
+
+export async function POST(request: Request) {
+  const body = (await request.json().catch(() => ({}))) as { title?: string };
+  const conversation = await prisma.conversation.create({
+    data: { title: body.title?.trim() || "New conversation" },
+  });
+
+  return NextResponse.json(
+    {
+      id: conversation.id,
+      title: conversation.title,
+      preview: "No messages yet",
+      updatedAt: conversation.updatedAt,
+    },
+    { status: 201 },
+  );
 }

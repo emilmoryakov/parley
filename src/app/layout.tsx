@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import QueryProvider from "@/components/providers/QueryProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
 
 const inter = Inter({
@@ -37,13 +38,16 @@ export default function RootLayout({
 
         {/* Floating glass app card. The sidebar lives in the layout so it stays
             mounted across conversation navigation (and only fetches once). The
-            active page renders into the second column. */}
-        <div className="relative mx-auto flex h-[100dvh] max-w-[1440px] p-0 sm:p-4 lg:p-6">
-          <div className="grid h-full w-full grid-cols-1 overflow-hidden rounded-none border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/60 backdrop-blur-2xl sm:rounded-3xl md:grid-cols-[300px_1fr]">
-            <Sidebar />
-            {children}
+            active page renders into the second column. QueryProvider gives every
+            client component access to the shared TanStack Query cache. */}
+        <QueryProvider>
+          <div className="relative mx-auto flex h-[100dvh] max-w-[1440px] p-0 sm:p-4 lg:p-6">
+            <div className="grid h-full w-full grid-cols-1 overflow-hidden rounded-none border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/60 backdrop-blur-2xl sm:rounded-3xl md:grid-cols-[300px_1fr]">
+              <Sidebar />
+              {children}
+            </div>
           </div>
-        </div>
+        </QueryProvider>
       </body>
     </html>
   );

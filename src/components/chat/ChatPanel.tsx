@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import ChatHeader from "./ChatHeader";
 import MessageList from "./MessageList";
 import MessageInput from "./MessageInput";
@@ -9,79 +9,67 @@ import { fetchAssistantReply } from "@/lib/api/chat";
 import type { Message } from "@/lib/types";
 
 export default function ChatPanel({ conversationId }: { conversationId: string }) {
-  const [messages, setMessages] = useState<Message[]>([]);
-  // Starts true: the component remounts per conversation (see the `key` in the
-  // route), so loading begins on mount rather than via a setState in the effect.
-  const [isMessagesLoading, setIsMessagesLoading] = useState(true);
-  const [isReplyLoading, setIsReplyLoading] = useState(false);
+  const queryClient = useQueryClient();
+  const messagesKey = ["messages", conversationId];
 
-  // Fetch messages when the ACTIVE CONVERSATION changes — not when the messages
-  // array changes. Depending on `messages` here would refetch on every send and
-  // loop endlessly; `conversationId` is the only correct dependency.
-  useEffect(() => {
-    let active = true;
-    fetchMessages(conversationId)
-      .then((loaded) => {
-        if (active) {
-          setMessages(loaded);
-          setIsMessagesLoading(false);
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setMessages([]);
-          setIsMessagesLoading(false);
-        }
-      });
-    return () => {
-      active = false;
-    };
-  }, [conversationId]);
+  // Fetch messages for the active conversation. The query key includes the id,
+  // so the data refetches when the conversation changes — never when the
+  // messages array itself changes (which would loop forever).
+  const { data: messages = [], isLoading: isMessagesLoading } = useQuery({
+    queryKey: messagesKey,
+    queryFn: () => fetchMessages(conversationId),
+  });
 
-  async function handleSendMessage(text: string) {
-    // 1. Persist the user message and show it immediately.
-    const userMessage = await createMessage({ conversationId, role: "user", content: text });
-    setMessages((previous) => [...previous, userMessage]);
-
-    // 2. Ask the server for the AI reply, showing the loading indicator.
-    setIsReplyLoading(true);
-    try {
-      const history = [...messages, userMessage];
-      const reply = await fetchAssistantReply(history);
-      const assistantMessage = await createMessage({
+  // Sending: save the user message, ask the LLM, save the assistant reply, then
+  // invalidate so the UI reflects the persisted rows automatically.
+  const sendMessage = useMutation({
+    mutationFn: async ({ text, history }: { text: string; history: Message[] }) => {
+      await createMessage({ conversationId, role: "user", content: text });
+      const reply = await fetchAssistantReply([...history, { role: "user", content: text }]);
+      await createMessage({
         conversationId,
         role: "assistant",
         content: reply || "(no response)",
       });
-      // 3. Append the assistant message — it appears without any refetch.
-      setMessages((previous) => [...previous, assistantMessage]);
-    } catch (error) {
-      const detail = error instanceof Error ? error.message : "Something went wrong";
-      setMessages((previous) => [
-        ...previous,
-        {
-          id: `err-${crypto.randomUUID()}`,
-          conversationId,
-          role: "assistant",
-          content: `⚠ ${detail}`,
-          time: "",
-          isError: true,
-        },
-      ]);
-    } finally {
-      setIsReplyLoading(false);
-    }
+    },
+    // Show the user's message instantly (optimistic), before the round-trip.
+    onMutate: async ({ text }) => {
+      await queryClient.cancelQueries({ queryKey: messagesKey });
+      const previous = queryClient.getQueryData<Message[]>(messagesKey) ?? [];
+      const optimistic: Message = {
+        id: `optimistic-${crypto.randomUUID()}`,
+        conversationId,
+        role: "user",
+        content: text,
+        createdAt: new Date().toISOString(),
+      };
+      queryClient.setQueryData<Message[]>(messagesKey, [...previous, optimistic]);
+      return { previous };
+    },
+    // Either way, refetch the real rows (and the sidebar previews).
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: messagesKey });
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+    },
+  });
+
+  function handleSendMessage(text: string) {
+    sendMessage.mutate({ text, history: messages });
   }
+
+  const errorText =
+    sendMessage.isError && sendMessage.error instanceof Error ? sendMessage.error.message : null;
 
   return (
     <section className="flex min-w-0 flex-col">
-      <ChatHeader isReplyLoading={isReplyLoading} />
+      <ChatHeader isReplyLoading={sendMessage.isPending} />
       <MessageList
         messages={messages}
         isMessagesLoading={isMessagesLoading}
-        isReplyLoading={isReplyLoading}
+        isReplyLoading={sendMessage.isPending}
+        errorText={errorText}
       />
-      <MessageInput onSendMessage={handleSendMessage} disabled={isReplyLoading} />
+      <MessageInput onSendMessage={handleSendMessage} disabled={sendMessage.isPending} />
     </section>
   );
 }

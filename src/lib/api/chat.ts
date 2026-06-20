@@ -1,10 +1,10 @@
-import type { Message } from "@/lib/types";
-
 /*
  * Client-side chat module. Posts the conversation to the local /api/chat route,
  * which talks to OpenRouter on the server. The API key never reaches the client.
  */
-export async function fetchAssistantReply(history: Message[]): Promise<string> {
+export async function fetchAssistantReply(
+  history: { role: string; content: string }[],
+): Promise<string> {
   const response = await fetch("/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

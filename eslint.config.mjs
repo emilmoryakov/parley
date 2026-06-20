@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // The archived A3 plain-JS source isn't part of this project.
     "legacy/**",
+    // Generated Prisma client.
+    "src/generated/**",
   ]),
 ]);
 

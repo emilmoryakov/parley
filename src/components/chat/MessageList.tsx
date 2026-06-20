@@ -10,17 +10,19 @@ export default function MessageList({
   messages,
   isMessagesLoading,
   isReplyLoading,
+  errorText,
 }: {
   messages: ChatMessage[];
   isMessagesLoading: boolean;
   isReplyLoading: boolean;
+  errorText: string | null;
 }) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // Keep the newest message (or the typing indicator) in view.
+  // Keep the newest message (or the typing/error indicator) in view.
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isReplyLoading]);
+  }, [messages, isReplyLoading, errorText]);
 
   return (
     <main
@@ -48,6 +50,17 @@ export default function MessageList({
       )}
 
       {isReplyLoading && <TypingIndicator />}
+
+      {errorText && (
+        <div className="flex w-full gap-3">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white shadow-lg shadow-indigo-500/30">
+            <Sparkles className="h-4 w-4" />
+          </span>
+          <div className="rounded-2xl rounded-tl-md border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-[15px] leading-relaxed text-rose-200 backdrop-blur-md">
+            ⚠ {errorText}
+          </div>
+        </div>
+      )}
 
       <div ref={bottomRef} />
     </main>

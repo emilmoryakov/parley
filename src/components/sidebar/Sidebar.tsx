@@ -1,35 +1,46 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
-import { MessagesSquare, Plus, Search, Settings2 } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRouter, usePathname } from "next/navigation";
+import { MessagesSquare, Plus, Search, Settings2, Loader2 } from "lucide-react";
 import ConversationItem from "./ConversationItem";
-import { fetchConversations } from "@/lib/api/conversations";
-import type { Conversation } from "@/lib/types";
+import {
+  fetchConversations,
+  createConversation,
+  deleteConversation,
+} from "@/lib/api/conversations";
 
 export default function Sidebar() {
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const router = useRouter();
   const pathname = usePathname();
+  const queryClient = useQueryClient();
 
-  // Fetch the conversation list ONCE, when the sidebar mounts. The empty
-  // dependency array is the point: it must not refetch on every render.
-  useEffect(() => {
-    let active = true;
-    fetchConversations()
-      .then((loaded) => {
-        if (active) {
-          setConversations(loaded);
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setConversations([]);
-        }
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
+  // Fetch the conversation list. The query key (["conversations"]) is what makes
+  // this fetch run once and stay cached — no manual useEffect, no refetch loop.
+  const { data: conversations = [], isLoading } = useQuery({
+    queryKey: ["conversations"],
+    queryFn: fetchConversations,
+  });
+
+  // Create → invalidate the list so it refetches, then open the new conversation.
+  const createMutation = useMutation({
+    mutationFn: () => createConversation(),
+    onSuccess: (created) => {
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      router.push(`/conversations/${created.id}`);
+    },
+  });
+
+  // Delete → invalidate the list; if the deleted one was open, go home.
+  const deleteMutation = useMutation({
+    mutationFn: deleteConversation,
+    onSuccess: (_data, deletedId) => {
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      if (pathname === `/conversations/${deletedId}`) {
+        router.push("/");
+      }
+    },
+  });
 
   return (
     <aside className="hidden flex-col border-r border-white/10 bg-black/20 md:flex">
@@ -50,9 +61,15 @@ export default function Sidebar() {
       <div className="px-4 pb-4">
         <button
           type="button"
-          className="group flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-fuchsia-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-fuchsia-500/20 transition duration-200 hover:scale-[1.02] hover:shadow-fuchsia-500/40 active:scale-[0.99]"
+          onClick={() => createMutation.mutate()}
+          disabled={createMutation.isPending}
+          className="group flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-fuchsia-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-fuchsia-500/20 transition duration-200 hover:scale-[1.02] hover:shadow-fuchsia-500/40 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          <Plus className="h-4 w-4 transition group-hover:rotate-90" />
+          {createMutation.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Plus className="h-4 w-4 transition group-hover:rotate-90" />
+          )}
           New Chat
         </button>
       </div>
@@ -75,13 +92,23 @@ export default function Sidebar() {
 
       {/* Conversation list */}
       <nav className="scroll-soft flex-1 space-y-1 overflow-y-auto px-3 pb-4">
-        {conversations.map((conversation) => (
-          <ConversationItem
-            key={conversation.id}
-            conversation={conversation}
-            isActive={pathname === `/conversations/${conversation.id}`}
-          />
-        ))}
+        {isLoading ? (
+          <div className="flex items-center gap-2 px-3 py-2 text-sm text-zinc-500">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading…
+          </div>
+        ) : conversations.length === 0 ? (
+          <p className="px-3 py-2 text-sm text-zinc-500">No conversations yet.</p>
+        ) : (
+          conversations.map((conversation) => (
+            <ConversationItem
+              key={conversation.id}
+              conversation={conversation}
+              isActive={pathname === `/conversations/${conversation.id}`}
+              onDelete={() => deleteMutation.mutate(conversation.id)}
+            />
+          ))
+        )}
       </nav>
 
       {/* Profile */}
