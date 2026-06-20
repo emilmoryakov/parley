@@ -1,10 +1,21 @@
+"use client";
+
 import { useEffect, useRef } from "react";
 import { Sparkles, Loader2 } from "lucide-react";
-import Message from "./Message.jsx";
-import TypingIndicator from "./TypingIndicator.jsx";
+import Message from "./Message";
+import TypingIndicator from "./TypingIndicator";
+import type { Message as ChatMessage } from "@/lib/types";
 
-export default function MessageList({ messages, isMessagesLoading, isReplyLoading }) {
-  const bottomRef = useRef(null);
+export default function MessageList({
+  messages,
+  isMessagesLoading,
+  isReplyLoading,
+}: {
+  messages: ChatMessage[];
+  isMessagesLoading: boolean;
+  isReplyLoading: boolean;
+}) {
+  const bottomRef = useRef<HTMLDivElement>(null);
 
   // Keep the newest message (or the typing indicator) in view.
   useEffect(() => {

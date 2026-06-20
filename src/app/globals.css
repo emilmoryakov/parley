@@ -1,30 +1,17 @@
+@import "tailwindcss";
+
+/* Wire the next/font CSS variables (set in layout.tsx) into Tailwind's font
+   utilities, so `font-sans` / `font-mono` use Inter / JetBrains Mono. */
+@theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+}
+
 /*
- * Parley — low-level polish that sits underneath Tailwind.
- *
- * Layout and component styling live as Tailwind utility classes in the JSX
- * (Tailwind loads from the Play CDN in index.html). What stays here is the stuff
- * the CDN is awkward for: the drifting aurora backdrop, custom scrollbars, the
- * typing-indicator dots, the message entrance animation, and a couple of resets.
+ * Low-level polish that sits underneath Tailwind: the drifting aurora backdrop,
+ * custom scrollbars, the typing-indicator dots, and the message entrance
+ * animation. Layout/component styling lives as Tailwind classes in the JSX.
  */
-
-* {
-  box-sizing: border-box;
-}
-
-html,
-body {
-  height: 100%;
-  margin: 0;
-}
-
-#root {
-  height: 100%;
-}
-
-body {
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-}
 
 ::selection {
   background: rgba(217, 70, 239, 0.35);
