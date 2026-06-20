@@ -1,14 +1,18 @@
 # Parley
 
 A small chat interface built with **Next.js (App Router) + TypeScript + Tailwind
-CSS**. Conversations and messages are served by in-memory **API routes**, and the
+CSS**. Conversations and messages are persisted in **SQLite via Prisma**, served
+by **API routes**, and fetched on the client with **TanStack Query**. The
 assistant reply comes from OpenRouter through a **server-side** route so the API
 key never reaches the browser.
 
 ## Quick start
 
 ```sh
-npm install
+npm install                       # also runs `prisma generate` (postinstall)
+
+npx prisma migrate dev            # create the SQLite database + tables
+npm run db:seed                   # seed a few conversations (optional)
 
 # Add your OpenRouter key (server-side only, gitignored):
 cp .env.example .env.local        # Windows: copy .env.example .env.local
@@ -17,65 +21,53 @@ cp .env.example .env.local        # Windows: copy .env.example .env.local
 npm run dev
 ```
 
-Open <http://localhost:3000>. The app loads conversations and messages from the
-mock API routes without a key — only the live AI reply needs one.
+Open <http://localhost:3000>. The app reads conversations and messages from the
+database without a key — only the live AI reply needs one.
 
 > **Where do I put the API key?** In `.env.local` as `OPENROUTER_API_KEY` (no
 > `NEXT_PUBLIC_` prefix). It is read with `process.env` only inside
 > [`src/app/api/chat/route.ts`](src/app/api/chat/route.ts), so Next.js never
-> ships it to the browser. See [`.env.example`](.env.example).
+> ships it to the browser. The database URL is non-secret and lives in the
+> committed [`.env`](.env) (`DATABASE_URL="file:./dev.db"`).
 
-## Architecture
+## Data layer (Prisma + SQLite)
 
-- **File-based routing** — every conversation has its own URL,
-  `/conversations/[id]`. The home page (`/`) shows a welcome message. The sidebar
-  lives in the root layout, so it stays mounted (and fetches once) as you move
-  between conversations.
-- **Server-side API routes** hold the data and secrets:
-  - [`api/conversations`](src/app/api/conversations/route.ts) — `GET` the list
-  - [`api/messages`](src/app/api/messages/route.ts) — `GET` by conversation, `POST` to create
+- [`prisma/schema.prisma`](prisma/schema.prisma) — `Conversation` and `Message`
+  models; each message belongs to a conversation (and cascades on delete).
+- [`src/lib/prisma.ts`](src/lib/prisma.ts) — a single shared `PrismaClient`,
+  cached on `globalThis` so dev hot-reload reuses one connection. Prisma 7
+  connects through the better-sqlite3 driver adapter.
+- API routes read/write the database for every operation — there are no
+  in-memory arrays:
+  - [`api/conversations`](src/app/api/conversations/route.ts) — `GET` list, `POST` create
+  - [`api/conversations/[id]`](src/app/api/conversations/[id]/route.ts) — `DELETE`
+  - [`api/messages`](src/app/api/messages/route.ts) — `GET` by conversation, `POST` save
   - [`api/chat`](src/app/api/chat/route.ts) — `POST` → proxies OpenRouter with the server key
-- **Client API modules** ([`src/lib/api`](src/lib/api)) call those routes with
-  relative URLs instead of touching in-memory arrays directly.
-- **Client components** carry the `"use client"` directive only where they use
-  hooks/handlers (`Sidebar`, `ChatPanel`, `MessageList`, `MessageInput`).
 
-### useEffect dependencies
+## Client data (TanStack Query)
 
-- The conversation list is fetched **once on mount** (`[]` dependency) in
-  [`Sidebar`](src/components/sidebar/Sidebar.tsx) — it does not refetch on every render.
-- Messages are fetched when the **active conversation changes**
-  (`[conversationId]`), never on changes to the `messages` array itself, which
-  would loop endlessly. `ChatPanel` is remounted per conversation via a route
-  `key`, so loading state resets cleanly without a setState-in-effect.
+[`QueryProvider`](src/components/providers/QueryProvider.tsx) wraps the layout so
+every client component shares one query cache.
 
-### Sending a message
+- **Queries** replace the old `useEffect` fetches:
+  - [`Sidebar`](src/components/sidebar/Sidebar.tsx) — `useQuery(["conversations"])`,
+    fetched once and cached (no refetch loop).
+  - [`ChatPanel`](src/components/chat/ChatPanel.tsx) —
+    `useQuery(["messages", conversationId])`, refetched when the **conversation
+    changes**, never when the messages array changes.
+- **Mutations** replace the writes and invalidate the relevant queries on
+  success, so the UI updates automatically:
+  - New Chat → create conversation → invalidate `["conversations"]`
+  - Delete (trash icon on hover) → delete → invalidate `["conversations"]`
+  - Send → save user message (shown optimistically) → OpenRouter reply → save
+    assistant message → invalidate `["messages", id]`, so the reply appears with
+    no manual refetch.
 
-The user message is created via `POST /api/messages` and shown immediately. While
-the server fetches the AI reply (a typing indicator shows), the assistant message
-is appended to state when it returns — no page refresh or manual refetch.
+## File-based routing
 
-## Project layout
-
-```
-src/
-  app/
-    layout.tsx                  shell: fonts, aurora, persistent <Sidebar>
-    page.tsx                    home (welcome)
-    globals.css                 Tailwind + aurora/scrollbars/typing/animations
-    conversations/[id]/page.tsx dynamic conversation route → <ChatPanel>
-    api/
-      conversations/route.ts    server data + GET
-      messages/route.ts         server data + GET/POST
-      chat/route.ts             server-only OpenRouter proxy (reads process.env)
-  components/
-    sidebar/   Sidebar, ConversationItem
-    chat/      ChatPanel, ChatHeader, MessageList, Message, MessageInput, TypingIndicator
-  lib/
-    types.ts                    shared Conversation / Message types
-    api/                        client fetch wrappers (conversations, messages, chat)
-legacy/                         the A3 plain-JS version, preserved (not built)
-```
+Every conversation has its own URL, `/conversations/[id]`. The home page (`/`)
+is a welcome screen. The sidebar lives in the root layout, so it stays mounted
+across navigation.
 
 ## Scripts
 
@@ -83,9 +75,13 @@ legacy/                         the A3 plain-JS version, preserved (not built)
 npm run dev          # Next.js dev server on http://localhost:3000
 npm run build        # production build (also type-checks)
 npm run start        # serve the production build
+npm run db:migrate   # prisma migrate dev
+npm run db:seed      # seed the database
+npm run db:reset     # drop + re-create + re-apply migrations
 npm run lint         # ESLint (eslint-config-next)
 npm run format       # Prettier, write
 ```
 
 A `pre-commit` hook (husky + lint-staged) checks staged files with Prettier and
-ESLint. The `legacy/` folder is excluded from both.
+ESLint. The `legacy/` folder (the original A3 plain-JS version) and the generated
+Prisma client are excluded from build/lint/format.
