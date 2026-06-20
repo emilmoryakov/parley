@@ -1,9 +1,17 @@
-import { useState, useRef, useEffect } from "react";
-import { Paperclip, Image, ArrowUp } from "lucide-react";
+"use client";
 
-export default function MessageInput({ onSendMessage, disabled }) {
+import { useState, useRef, useEffect } from "react";
+import { Paperclip, Image as ImageIcon, ArrowUp } from "lucide-react";
+
+export default function MessageInput({
+  onSendMessage,
+  disabled,
+}: {
+  onSendMessage: (text: string) => void;
+  disabled: boolean;
+}) {
   const [text, setText] = useState("");
-  const textareaRef = useRef(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-grow the textarea with its content, up to a max height.
   useEffect(() => {
@@ -24,13 +32,13 @@ export default function MessageInput({ onSendMessage, disabled }) {
     setText("");
   }
 
-  function handleSubmit(event) {
+  function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     submit();
   }
 
   // Enter sends; Shift+Enter inserts a newline.
-  function handleKeyDown(event) {
+  function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       submit();
@@ -70,7 +78,7 @@ export default function MessageInput({ onSendMessage, disabled }) {
           className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-zinc-400 transition hover:bg-white/10 hover:text-zinc-100"
           aria-label="Add image"
         >
-          <Image className="h-5 w-5" />
+          <ImageIcon className="h-5 w-5" />
         </button>
 
         <button

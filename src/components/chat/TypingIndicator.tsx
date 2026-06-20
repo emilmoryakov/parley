@@ -1,6 +1,6 @@
 import { Sparkles } from "lucide-react";
 
-// Loading indicator (bonus): shown while we wait for the assistant's reply.
+// Loading indicator shown while we wait for the assistant's reply.
 export default function TypingIndicator() {
   return (
     <div className="message-in flex w-full gap-3" aria-label="Parley is typing">
@@ -8,9 +8,9 @@ export default function TypingIndicator() {
         <Sparkles className="h-4 w-4" />
       </span>
       <div className="flex items-center gap-1.5 rounded-2xl rounded-tl-md border border-white/10 bg-white/[0.06] px-4 py-3.5 text-zinc-300 backdrop-blur-md">
-        <span className="typing-dot"></span>
-        <span className="typing-dot"></span>
-        <span className="typing-dot"></span>
+        <span className="typing-dot" />
+        <span className="typing-dot" />
+        <span className="typing-dot" />
       </div>
     </div>
   );
