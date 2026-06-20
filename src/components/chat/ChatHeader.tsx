@@ -1,6 +1,6 @@
 import { Menu, Search, Share2, MoreHorizontal } from "lucide-react";
 
-export default function ChatHeader({ isReplyLoading }) {
+export default function ChatHeader({ isReplyLoading }: { isReplyLoading: boolean }) {
   return (
     <header className="flex items-center gap-3 border-b border-white/10 bg-white/[0.02] px-5 py-4">
       <button
@@ -14,7 +14,7 @@ export default function ChatHeader({ isReplyLoading }) {
       <div className="min-w-0 flex-1">
         <h1 className="truncate text-[15px] font-semibold text-zinc-100">Parley</h1>
         <p className="flex items-center gap-1.5 text-xs text-zinc-500">
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px] shadow-emerald-400/70"></span>
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px] shadow-emerald-400/70" />
           {isReplyLoading ? "Parley is typing…" : "Online · ready to chat"}
         </p>
       </div>

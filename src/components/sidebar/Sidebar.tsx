@@ -1,19 +1,31 @@
+"use client";
+
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { MessagesSquare, Plus, Search, Settings2 } from "lucide-react";
-import ConversationItem from "./ConversationItem.jsx";
-import { fetchConversations } from "../../api/conversations.js";
+import ConversationItem from "./ConversationItem";
+import { fetchConversations } from "@/lib/api/conversations";
+import type { Conversation } from "@/lib/types";
 
-export default function Sidebar({ activeConversationId, onSelectConversation }) {
-  const [conversations, setConversations] = useState([]);
+export default function Sidebar() {
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const pathname = usePathname();
 
-  // Load the conversation list once, when the sidebar mounts.
+  // Fetch the conversation list ONCE, when the sidebar mounts. The empty
+  // dependency array is the point: it must not refetch on every render.
   useEffect(() => {
     let active = true;
-    fetchConversations().then((loaded) => {
-      if (active) {
-        setConversations(loaded);
-      }
-    });
+    fetchConversations()
+      .then((loaded) => {
+        if (active) {
+          setConversations(loaded);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setConversations([]);
+        }
+      });
     return () => {
       active = false;
     };
@@ -67,8 +79,7 @@ export default function Sidebar({ activeConversationId, onSelectConversation }) 
           <ConversationItem
             key={conversation.id}
             conversation={conversation}
-            isActive={conversation.id === activeConversationId}
-            onSelect={() => onSelectConversation(conversation.id)}
+            isActive={pathname === `/conversations/${conversation.id}`}
           />
         ))}
       </nav>

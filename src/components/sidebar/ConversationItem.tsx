@@ -1,22 +1,29 @@
-import { Sparkles, Bug, Plane, Calendar, MessageCircle } from "lucide-react";
+import Link from "next/link";
+import { Sparkles, Bug, Plane, Calendar, MessageCircle, type LucideIcon } from "lucide-react";
+import type { Conversation } from "@/lib/types";
 
-// Map the icon/accent names stored on a conversation to concrete values. Full
-// class strings (not concatenated fragments) so the Tailwind CDN picks them up.
-const ICONS = {
+// Map the icon/accent names stored on a conversation to concrete values.
+const ICONS: Record<string, LucideIcon> = {
   sparkles: Sparkles,
   bug: Bug,
   plane: Plane,
   calendar: Calendar,
 };
 
-const ACCENTS = {
+const ACCENTS: Record<string, string> = {
   indigo: "bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white",
   rose: "bg-rose-500/15 text-rose-300",
   amber: "bg-amber-500/15 text-amber-300",
   emerald: "bg-emerald-500/15 text-emerald-300",
 };
 
-export default function ConversationItem({ conversation, isActive, onSelect }) {
+export default function ConversationItem({
+  conversation,
+  isActive,
+}: {
+  conversation: Conversation;
+  isActive: boolean;
+}) {
   const Icon = ICONS[conversation.icon] ?? MessageCircle;
   const accent = ACCENTS[conversation.accent] ?? ACCENTS.indigo;
 
@@ -27,14 +34,13 @@ export default function ConversationItem({ conversation, isActive, onSelect }) {
     : "border border-transparent hover:border-white/10 hover:bg-white/[0.04]";
 
   return (
-    <button
-      type="button"
-      onClick={onSelect}
+    <Link
+      href={`/conversations/${conversation.id}`}
       aria-current={isActive ? "page" : undefined}
       className={`${base} ${state}`}
     >
       {isActive && (
-        <span className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-gradient-to-b from-indigo-400 to-fuchsia-400"></span>
+        <span className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-gradient-to-b from-indigo-400 to-fuchsia-400" />
       )}
       <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${accent}`}>
         <Icon className="h-4 w-4" />
@@ -50,6 +56,6 @@ export default function ConversationItem({ conversation, isActive, onSelect }) {
         </span>
         <span className="block truncate text-xs text-zinc-400">{conversation.preview}</span>
       </span>
-    </button>
+    </Link>
   );
 }

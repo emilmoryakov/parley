@@ -1,6 +1,7 @@
 import { Sparkles } from "lucide-react";
+import type { Message as ChatMessage } from "@/lib/types";
 
-export default function Message({ message }) {
+export default function Message({ message }: { message: ChatMessage }) {
   const isUser = message.role === "user";
   const author = isUser ? "Emil" : "Parley";
 
@@ -14,7 +15,7 @@ export default function Message({ message }) {
     </span>
   );
 
-  // Bubble styling depends on who's speaking, plus a red variant for errors.
+  // Bubble styling depends on who is speaking, plus a red variant for errors.
   let bubble =
     "rounded-2xl rounded-tl-md border border-white/10 bg-white/[0.06] px-4 py-2.5 text-[15px] leading-relaxed text-zinc-200 backdrop-blur-md";
   if (isUser) {

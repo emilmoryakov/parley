@@ -1,5 +1,8 @@
 node_modules/
 .husky/
 package-lock.json
+.next/
 dist/
 legacy/
+public/
+next-env.d.ts
