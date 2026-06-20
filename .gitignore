@@ -1,2 +1,13 @@
 node_modules/
 .DS_Store
+
+# Vite build output
+dist/
+
+# Local environment — your OpenRouter key lives here (see .env.example).
+.env
+.env.local
+*.local
+
+# Legacy A3 secrets — config.js was the old plain-JS key file.
+config.js
